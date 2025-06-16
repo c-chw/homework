@@ -22,7 +22,7 @@ public class StudentManagerUI extends JFrame {
     }
 
     public StudentManagerUI() {
-        setTitle("学生管理系统");
+        setTitle("Manage Student");
 
         showStudent();
         this.setVisible(true);

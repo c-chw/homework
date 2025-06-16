@@ -110,9 +110,6 @@ public class AddStudentUI extends JFrame {
             }
 
 
-
-
-
             // 获取输入框中的数据，封装成学生对象，添加到信息界面的集合并在其表格展示
             Student student = new Student();
             student.setId(Integer.parseInt(txtId.getText()));
