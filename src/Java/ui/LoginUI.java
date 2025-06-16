@@ -8,8 +8,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 
+import static Java.ui.StudentManagerUI.students;
 import static Java.ui.TeacherManagerUI.teachers;
 
 public class LoginUI extends JFrame implements ActionListener {
@@ -19,15 +19,12 @@ public class LoginUI extends JFrame implements ActionListener {
     private JButton  Registerbutton = new JButton();
     private User  user ;
 
-    private static ArrayList<Student> students =new ArrayList<>();
-
-
     public LoginUI(User user) {
         this.user = user;
         this.setTitle("Login");
         this.setSize(400, 300);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setLocationRelativeTo(null);
+        this.setLocationRelativeTo(null); //居中显示
 
         showLoginUI();
     }
@@ -118,7 +115,7 @@ public class LoginUI extends JFrame implements ActionListener {
             for (Student student : students) {
                 if (student.getName().equals(username)&&student.getPassword().equals(password)) {
                     System.out.println("Login Success");
-                    //new StudentMenu();
+                    new StudentInfoApp(student);
                     this.dispose();
                     return;
                 }
