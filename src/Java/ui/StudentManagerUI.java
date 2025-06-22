@@ -1,5 +1,6 @@
 package Java.ui;
 
+import Java.DBUtil;
 import Java.bean.Score;
 import Java.bean.Student;
 
@@ -10,6 +11,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class StudentManagerUI extends JFrame {
@@ -27,6 +30,7 @@ public class StudentManagerUI extends JFrame {
         setTitle("学生管理系统");
 
         showStudent();
+        refreshStudent();
         this.setVisible(true);
 
     }
@@ -220,9 +224,10 @@ public class StudentManagerUI extends JFrame {
         }
         return -1;
     }
-    private void editStudent(int id) {
-        if (queryStudent(id) != -1){
-            Student student = students.get(id);
+    public void editStudent(int id) {
+        int index = queryStudent(id);
+        if (index != -1){
+            Student student = students.get(index);
             new EditStudentUI(this,student);
         }else {
             JOptionPane.showMessageDialog(this, "该学生不存在！");
@@ -308,6 +313,40 @@ public class StudentManagerUI extends JFrame {
         ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
         if (scores == null) return -1;
         return scores.stream().mapToDouble(Score::getScore).sum();
+    }
+    private void loadStudentsFromDatabase() {
+        students.clear(); // 清空默认数据
+        String sql = "SELECT * FROM students"; // 假设有一个 student 表
+
+        try (Connection conn = DBUtil.getConnection();
+             var stmt = conn.createStatement();
+             var rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                String password = rs.getString("password");
+
+                // 查询成绩（假设 score 表关联 student.id）
+                String scoreSql = "SELECT * FROM score WHERE student_id = ?";
+                try (var scoreStmt = conn.prepareStatement(scoreSql)) {
+                    scoreStmt.setInt(1, id);
+                    var scoreRs = scoreStmt.executeQuery();
+
+                    ArrayList<Score> scores = new ArrayList<>();
+                    while (scoreRs.next()) {
+                        String subject = scoreRs.getString("subject");
+                        double scoreValue = scoreRs.getDouble("score");
+                        scores.add(new Score(subject, scoreValue));
+                    }
+
+                    students.add(new Student(id, name, password, scores));
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "❌ 加载学生数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 }
