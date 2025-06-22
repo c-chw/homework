@@ -6,12 +6,12 @@ public class Student {
     private int id;
     private String name;
     private String password;
-    private ArrayList<Score> scores = new ArrayList<>();
+    private List<Score> scores = new ArrayList<>();
 
     {
-        scores.add(new Score("Java", null));
-        scores.add(new Score("Math", null));
-        scores.add(new Score("English", null));
+        scores.add(new Score("Java", 0.0));
+        scores.add(new Score("Math", 0.0));
+        scores.add(new Score("English", 0.0));
     }
 
     public Student() {
@@ -48,7 +48,7 @@ public class Student {
         this.password = password;
     }
 
-    public ArrayList<Score> getScores() {
+    public List<Score> getScores() {
         return scores;
     }
 

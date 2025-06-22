@@ -72,10 +72,10 @@ public class AddStudentUI extends JFrame {
         gbc.gridy = 4;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.NONE;
+        gbc.fill = GridBagConstraints.NONE; //  取消填充
         btnSave = new JButton("保存");
         btnCancel = new JButton("取消");
-        btnSave.setPreferredSize(new Dimension(100, 30));
+        btnSave.setPreferredSize(new Dimension(100, 30)); // 设置按钮大小
         btnCancel.setPreferredSize(new Dimension(100, 30));
         JPanel buttonPanel = new JPanel();
         buttonPanel.add(btnSave);
@@ -109,10 +109,6 @@ public class AddStudentUI extends JFrame {
                 return;
             }
 
-
-
-
-
             // 获取输入框中的数据，封装成学生对象，添加到信息界面的集合并在其表格展示
             Student student = new Student();
             student.setId(Integer.parseInt(txtId.getText()));
@@ -120,8 +116,7 @@ public class AddStudentUI extends JFrame {
 
             // 获取用户选择的科目和输入的成绩
             String selectedSubject = (String) cmbSubject.getSelectedItem();
-            Double scoreValue = null;
-
+            double scoreValue = 0.0; //基元 类型不能为null 基元包装类（<Double> 包装类可以为null)
 
             // 成绩非空时才解析
             if (!scoreText.isEmpty()) {

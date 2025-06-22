@@ -15,10 +15,12 @@ import java.util.ArrayList;
 public class StudentManagerUI extends JFrame {
     private JTable table;
     private DefaultTableModel model;
+    public JLabel javaAvgLabel,mathAvgLabel,englishAvgLabel;
     public static ArrayList<Student> students = new ArrayList<>();
 
     static {
         students.add(new Student(1, "张三", "123456", new ArrayList<>()));
+        students.add(new Student(2, "李四", "123456", new ArrayList<>()));
     }
 
     public StudentManagerUI() {
@@ -42,13 +44,23 @@ public class StudentManagerUI extends JFrame {
         JTextField textField = new JTextField(20);
         JButton searchBtn = new JButton("查询");
         JButton addBtn = new JButton("添加");
+        JButton sortBtn = new JButton("排序");
         panel.add(textField);
         panel.add(searchBtn);
         panel.add(addBtn);
+        panel.add(sortBtn);
+
+        JPopupMenu sortMenu = new JPopupMenu(); //降序 升序
+        // 添加菜单项
+        String[] sortOptions = {"学号", "姓名", "Java", "数学", "英语", "总分"};
+        for (String option : sortOptions) {
+            JMenuItem item = new JMenuItem(option);
+            sortMenu.add(item);
+        }
 
         model = new DefaultTableModel(
                 new Object[][]{},
-                new String[]{"学号", "姓名", "Java","数学","英语"}
+                new String[]{"学号", "姓名", "Java","数学","英语","总分"}
         ){
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -77,6 +89,26 @@ public class StudentManagerUI extends JFrame {
             }
         });
 
+        // 右侧面板 - 显示平均分
+        JPanel rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setPreferredSize(new Dimension(200, 300));
+        rightPanel.setBorder(BorderFactory.createTitledBorder("评估"));
+
+        javaAvgLabel = new JLabel("Java平均分：0");
+        mathAvgLabel = new JLabel("数学平均分：0");
+        englishAvgLabel = new JLabel("英语平均分：0");
+
+        JButton maxScoreBtn = new JButton("最高分");
+        JButton minScoreBtn = new JButton("最低分");
+
+        rightPanel.add(javaAvgLabel);
+        rightPanel.add(mathAvgLabel);
+        rightPanel.add(englishAvgLabel);
+        rightPanel.add(maxScoreBtn);
+        rightPanel.add(minScoreBtn);
+
+
         editItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -101,14 +133,84 @@ public class StudentManagerUI extends JFrame {
 
         searchBtn.addActionListener(e-> {
             String searchValue = textField.getText();
+            model.setRowCount(0);
+            for (Student student : students) {
+                if (student.getName().contains(searchValue)) {
+                    model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
+                }
+            }
         });
 
         addBtn.addActionListener(e-> {
             new AddStudentUI(this);
         });
 
+        // 绑定弹出菜单到按钮
+        sortBtn.addActionListener(e -> sortMenu.show(sortBtn, 0, sortBtn.getHeight()));
+        for (int i = 0; i < sortMenu.getComponentCount(); i++) {
+            Component comp = sortMenu.getComponent(i);
+            if (comp instanceof JMenuItem) {
+                JMenuItem item = (JMenuItem) comp;
+                int index = i;
+
+                item.addActionListener(e -> {
+                    switch (index) {
+                        case 0: // 学号
+                            students.sort((s1, s2) -> Integer.compare(s2.getId(), s1.getId()));
+                            break;
+                        case 1: // 姓名
+                            students.sort((s1, s2) -> s2.getName().compareToIgnoreCase(s1.getName()));
+                            break;
+                        case 2: // Java 成绩
+                            students.sort((s1, s2) -> {
+                                double score1 = getScoreSafely(s1, 0);
+                                double score2 = getScoreSafely(s2, 0);
+                                return Double.compare(score2, score1);
+                            });
+                            break;
+                        case 3: // 数学成绩
+                            students.sort((s1, s2) -> {
+                                double score1 = getScoreSafely(s1, 1);
+                                double score2 = getScoreSafely(s2, 1);
+                                return Double.compare(score2, score1);
+                            });
+                            break;
+                        case 4: // 英语成绩
+                            students.sort((s1, s2) -> {
+                                double score1 = getScoreSafely(s1, 2);
+                                double score2 = getScoreSafely(s2, 2);
+                                return Double.compare(score2, score1);
+                            });
+                            break;
+                        case 5: // 总分
+                            students.sort((s1, s2) -> {
+                                double total1 = getTotalScore(s1);
+                                double total2 = getTotalScore(s2);
+                                return Double.compare(total2, total1);
+                            });
+                            break;
+                    }
+                    refreshStudent();
+                    updateAvgScore();
+                });
+            }
+        }
+
+
+        maxScoreBtn.addActionListener(e -> {
+
+        });
+
+        minScoreBtn.addActionListener(e -> {
+
+        });
+
+        updateAvgScore();//页面加载时自动计算一次平均分
+
         this.getContentPane().add(panel, BorderLayout.NORTH);
         this.getContentPane().add(scrollPane, BorderLayout.CENTER);
+        this.getContentPane().add(rightPanel, BorderLayout.EAST);
+
     }
     private int queryStudent(int id) {
         for (Student student : students) {
@@ -133,11 +235,79 @@ public class StudentManagerUI extends JFrame {
         }else {
             JOptionPane.showMessageDialog(this, "该学生不存在！");
         }
-
+        updateAvgScore();
     }
 
     public void addStudent(Student student) {
         students.add(student);
+        //Double totalScore = student.getScores().get(0).getScore() + student.getScores().get(1).getScore() + student.getScores().get(2).getScore(); //未用！！！！！！！！！！！！
         model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
+        updateAvgScore();
     }
+
+    public void refreshStudent() {
+        model.setRowCount(0); //清空表格
+        for (Student student : students) {
+            ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
+            //Double totalScore = student.getScores().get(0).getScore() + student.getScores().get(1).getScore() + student.getScores().get(2).getScore(); //未用！！！！！！！！！！！！
+            if (scores.size() >= 3) {
+                model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
+            } else {
+                model.addRow(new Object[]{student.getId(), student.getName(), 0, 0, 0});
+            }
+        }
+    }
+
+    private void updateAvgScore() {
+        if (students.isEmpty()) {
+            javaAvgLabel.setText("Java平均分：0");
+            mathAvgLabel.setText("数学平均分：0");
+            englishAvgLabel.setText("英语平均分：0");
+            return;
+        }
+
+        double javaSum = 0, mathSum = 0, englishSum = 0;
+        int validCount = 0;
+
+        for (Student student : students) {
+            ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
+            if (scores.size() >= 3) {
+                javaSum += scores.get(0).getScore();
+                mathSum += scores.get(1).getScore();
+                englishSum += scores.get(2).getScore();
+                validCount++;
+            }
+        }
+
+        if (validCount == 0) {
+            javaAvgLabel.setText("Java平均分：暂无数据");
+            mathAvgLabel.setText("数学平均分：暂无数据");
+            englishAvgLabel.setText("英语平均分：暂无数据");
+            return;
+        }
+
+        double javaAvg = javaSum / validCount;
+        double mathAvg = mathSum / validCount;
+        double englishAvg = englishSum / validCount;
+
+        // 更新标签内容
+        javaAvgLabel.setText(String.format("Java平均分：%.2f", javaAvg));
+        mathAvgLabel.setText(String.format("数学平均分：%.2f", mathAvg));
+        englishAvgLabel.setText(String.format("英语平均分：%.2f", englishAvg));
+    }
+
+    private double getScoreSafely(Student student, int index) {
+        ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
+        if (scores != null && scores.size() > index) {
+            return scores.get(index).getScore();
+        }
+        return -1; // 缺失成绩默认值
+    }
+
+    private double getTotalScore(Student student) {
+        ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
+        if (scores == null) return -1;
+        return scores.stream().mapToDouble(Score::getScore).sum();
+    }
+
 }
