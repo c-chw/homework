@@ -1,5 +1,7 @@
 package Java.ui;
 
+import Java.DBUtil;
+import Java.bean.Score;
 import Java.bean.Student;
 import Java.bean.Teacher;
 import Java.bean.User;
@@ -8,6 +10,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 
 import static Java.ui.StudentManagerUI.students;
 import static Java.ui.TeacherManagerUI.teachers;
@@ -112,13 +119,38 @@ public class LoginUI extends JFrame implements ActionListener {
                 }
             }
         }else {
-            for (Student student : students) {
-                if (student.getName().equals(username)&&student.getPassword().equals(password)) {
+            // 替换硬编码逻辑，改为从数据库查询学生信息
+            try (Connection conn = DBUtil.getConnection()) {
+                String sql = "SELECT * FROM students WHERE name = ? AND password = ?";
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                stmt.setString(1, username);
+                stmt.setString(2, password);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    String name = rs.getString("name");
+
+                    double javaScore = rs.getDouble("Java");
+                    double mathScore = rs.getDouble("Math");
+                    double englishScore = rs.getDouble("English");
+
+                    // 构建 Score 对象列表
+                    ArrayList<Score> scores = new ArrayList<>();
+                    scores.add(new Score("Java", javaScore));
+                    scores.add(new Score("Math", mathScore));
+                    scores.add(new Score("English", englishScore));
+
+                    Student student = new Student(id, name, password, scores);
                     System.out.println("Login Success");
                     new StudentInfoApp(student);
                     this.dispose();
-                    return;
+                } else {
+                    JOptionPane.showMessageDialog(this, "用户名或密码错误！", "登录失败", JOptionPane.ERROR_MESSAGE);
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "数据库查询失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

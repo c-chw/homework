@@ -20,13 +20,8 @@ import java.util.ArrayList;
 public class StudentManagerUI extends JFrame {
     private JTable table;
     private DefaultTableModel model;
-    public JLabel javaAvgLabel,mathAvgLabel,englishAvgLabel;
+    public JLabel javaAvgLabel,mathAvgLabel,englishAvgLabel,maxScoreLabel,minScoreLabel;
     public static ArrayList<Student> students = new ArrayList<>();
-
-    static {
-        students.add(new Student(1, "张三", "123456", new ArrayList<>()));
-        students.add(new Student(2, "李四", "123456", new ArrayList<>()));
-    }
 
     public StudentManagerUI() {
         setTitle("学生管理系统");
@@ -58,7 +53,7 @@ public class StudentManagerUI extends JFrame {
 
         JPopupMenu sortMenu = new JPopupMenu(); //降序 升序
         // 添加菜单项
-        String[] sortOptions = {"学号", "姓名", "Java", "数学", "英语", "总分"};
+        String[] sortOptions = {"学号", "姓名", "Java", "数学", "英语", "总分", "平均成绩"};
         for (String option : sortOptions) {
             JMenuItem item = new JMenuItem(option);
             sortMenu.add(item);
@@ -105,14 +100,14 @@ public class StudentManagerUI extends JFrame {
         mathAvgLabel = new JLabel("数学平均分：0");
         englishAvgLabel = new JLabel("英语平均分：0");
 
-        JButton maxScoreBtn = new JButton("最高分");
-        JButton minScoreBtn = new JButton("最低分");
+        maxScoreLabel = new JLabel("最高分：0");
+        minScoreLabel = new JLabel("最低分：0");
 
         rightPanel.add(javaAvgLabel);
         rightPanel.add(mathAvgLabel);
         rightPanel.add(englishAvgLabel);
-        rightPanel.add(maxScoreBtn);
-        rightPanel.add(minScoreBtn);
+        rightPanel.add(maxScoreLabel);
+        rightPanel.add(minScoreLabel);
 
 
         editItem.addActionListener(new ActionListener() {
@@ -139,18 +134,28 @@ public class StudentManagerUI extends JFrame {
 
         searchBtn.addActionListener(e-> {
             String searchValue = textField.getText();
-            model.setRowCount(0);
-            for (Student student : students) {
-                if (student.getName().contains(searchValue)) {
-                    int size = student.getScores().size();
-                    model.addRow(new Object[]{
-                            student.getId(),
-                            student.getName(),
-                            size > 0 ? student.getScores().get(0).getScore() : 0, // 检查索引是否存在
-                            size > 1 ? student.getScores().get(1).getScore() : 0, // 否则返回默认值 0
-                            size > 2 ? student.getScores().get(2).getScore() : 0
-                    });
+            model.setRowCount(0); // 清空表格
+
+            String sql = "SELECT * FROM students WHERE name LIKE ?";
+            try (Connection conn = DBUtil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, "%" + searchValue + "%"); // 模糊查询
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String name = rs.getString("name");
+                    double javaScore = rs.getDouble("Java");
+                    double mathScore = rs.getDouble("Math");
+                    double englishScore = rs.getDouble("English");
+
+                    model.addRow(new Object[]{id, name, javaScore, mathScore, englishScore});
                 }
+
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "搜索失败: " + ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -167,89 +172,100 @@ public class StudentManagerUI extends JFrame {
                 int index = i;
 
                 item.addActionListener(e -> {
-                    switch (index) {
-                        case 0: // 学号
-                            students.sort((s1, s2) -> Integer.compare(s2.getId(), s1.getId()));
-                            break;
-                        case 1: // 姓名
-                            students.sort((s1, s2) -> s2.getName().compareToIgnoreCase(s1.getName()));
-                            break;
-                        case 2: // Java 成绩
-                            students.sort((s1, s2) -> {
-                                double score1 = getScoreSafely(s1, 0);
-                                double score2 = getScoreSafely(s2, 0);
-                                return Double.compare(score2, score1);
-                            });
-                            break;
-                        case 3: // 数学成绩
-                            students.sort((s1, s2) -> {
-                                double score1 = getScoreSafely(s1, 1);
-                                double score2 = getScoreSafely(s2, 1);
-                                return Double.compare(score2, score1);
-                            });
-                            break;
-                        case 4: // 英语成绩
-                            students.sort((s1, s2) -> {
-                                double score1 = getScoreSafely(s1, 2);
-                                double score2 = getScoreSafely(s2, 2);
-                                return Double.compare(score2, score1);
-                            });
-                            break;
-                        case 5: // 总分
-                            students.sort((s1, s2) -> {
-                                double total1 = getTotalScore(s1);
-                                double total2 = getTotalScore(s2);
-                                return Double.compare(total2, total1);
-                            });
-                            break;
+                    String sql = switch (index) {
+                        case 0 -> // 学号降序
+                                "SELECT * FROM students ORDER BY id DESC";
+                        case 1 -> // 姓名降序
+                                "SELECT * FROM students ORDER BY name DESC";
+                        case 2 -> // Java 成绩降序
+                                "SELECT * FROM students ORDER BY Java DESC";
+                        case 3 -> // 数学成绩降序
+                                "SELECT * FROM students ORDER BY Math DESC";
+                        case 4 -> // 英语成绩降序
+                                "SELECT * FROM students ORDER BY English DESC";
+                        case 5 -> // 总分降序
+                                "SELECT * FROM students ORDER BY (Java + Math + English) DESC";
+                        case 6 -> // 按学生平均成绩降序
+                                "SELECT * FROM students ORDER BY (Java + Math + English) / 3 DESC";
+                        default -> "SELECT * FROM students";
+                    };
+                    model.setRowCount(0); // 清空表格
+
+                    try (Connection conn = DBUtil.getConnection();
+                         PreparedStatement stmt = conn.prepareStatement(sql);
+                         ResultSet rs = stmt.executeQuery()) {
+
+                        while (rs.next()) {
+                            int id = rs.getInt("id");
+                            String name = rs.getString("name");
+                            double javaScore = rs.getDouble("Java");
+                            double mathScore = rs.getDouble("Math");
+                            double englishScore = rs.getDouble("English");
+                            double totalScore = javaScore + mathScore + englishScore;
+
+                            model.addRow(new Object[]{id, name, javaScore, mathScore, englishScore, totalScore});
+                        }
+
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                        JOptionPane.showMessageDialog(StudentManagerUI.this, "排序失败: " + ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
                     }
-                    refreshStudent();
-                    updateAvgScore();
                 });
             }
         }
 
-
-        maxScoreBtn.addActionListener(e -> {
-
-        });
-
-        minScoreBtn.addActionListener(e -> {
-
-        });
-
-        updateAvgScore();//页面加载时自动计算一次平均分
+        updateScore();//页面加载时自动计算一次平均分
 
         this.getContentPane().add(panel, BorderLayout.NORTH);
         this.getContentPane().add(scrollPane, BorderLayout.CENTER);
         this.getContentPane().add(rightPanel, BorderLayout.EAST);
 
     }
-    private int queryStudent(int id) {
-        for (Student student : students) {
-            if (student.getId() == id) {
-                return id;
+    private Student queryStudent(int id) {
+        String sql = "SELECT * FROM students WHERE id = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String name = rs.getString("name");
+                double javaScore = rs.getDouble("Java");
+                double mathScore = rs.getDouble("Math");
+                double englishScore = rs.getDouble("English");
+
+                ArrayList<Score> scores = new ArrayList<>();
+                scores.add(new Score("Java", javaScore));
+                scores.add(new Score("Math", mathScore));
+                scores.add(new Score("English", englishScore));
+
+                return new Student(id, name, null, scores); // 假设密码不用于编辑界面
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "查询学生失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
         }
-        return -1;
+        return null; // 如果未找到学生，返回 null
     }
     public void editStudent(int id) {
-        int index = queryStudent(id);
-        if (index != -1){
-            Student student = students.get(index);
+        Student student = queryStudent(id);
+        if (student != null) {
             new EditStudentUI(this,student);
         }else {
             JOptionPane.showMessageDialog(this, "该学生不存在！");
         }
     }
 
-    private void deleteStudent (int id){
-        if (queryStudent(id) != -1){
-            students.remove(id);
-        }else {
-            JOptionPane.showMessageDialog(this, "该学生不存在！");
+    private boolean deleteStudent (int id){
+        String sql = "DELETE FROM students WHERE id = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)){
+             stmt.setInt(1, id);
+             return stmt.executeUpdate() > 0;
+        }catch (SQLException e) {
+            e.printStackTrace();
         }
-        updateAvgScore();
+        updateScore();
+        return false;
     }
 
     public void addStudent(Student student) {
@@ -266,7 +282,7 @@ public class StudentManagerUI extends JFrame {
             int rowsAffected = stmt.executeUpdate(); // 执行SQL语句
             if (rowsAffected > 0) { // 判断是否添加成功
                 model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore(), getTotalScore(student)});
-                updateAvgScore();
+                updateScore();
                 JOptionPane.showMessageDialog(this, "添加学生信息成功");
             } else {
                 JOptionPane.showMessageDialog(this, "添加学生信息失败", "错误", JOptionPane.ERROR_MESSAGE);
@@ -282,8 +298,8 @@ public class StudentManagerUI extends JFrame {
 
         try (Connection conn = DBUtil.getConnection()) {
             String sql = "SELECT * FROM students";
-            PreparedStatement pstmt = conn.prepareStatement(sql);
-            ResultSet rs = pstmt.executeQuery();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -301,42 +317,42 @@ public class StudentManagerUI extends JFrame {
         }
     }
 
-    private void updateAvgScore() {
-        if (students.isEmpty()) {
-            javaAvgLabel.setText("Java平均分：0");
-            mathAvgLabel.setText("数学平均分：0");
-            englishAvgLabel.setText("英语平均分：0");
-            return;
-        }
+    private void updateScore() {
+        String sql = "SELECT AVG(Java) AS avgJava, AVG(Math) AS avgMath, AVG(English) AS avgEnglish, MAX(TotalScore) AS maxScore,MIN(TotalScore) AS minScore FROM students";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
 
-        double javaSum = 0, mathSum = 0, englishSum = 0;
-        int validCount = 0;
+            if (rs.next()) {
+                double javaAvg = rs.getDouble("avgJava");
+                double mathAvg = rs.getDouble("avgMath");
+                double englishAvg = rs.getDouble("avgEnglish");
+                double maxScore = rs.getDouble("maxScore");
+                double minScore = rs.getDouble("minScore");
 
-        for (Student student : students) {
-            ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
-            if (scores.size() >= 3) {
-                javaSum += scores.get(0).getScore();
-                mathSum += scores.get(1).getScore();
-                englishSum += scores.get(2).getScore();
-                validCount++;
+                // 判断是否真的有数据（防止 NULL 被转换为 0.0）
+                boolean hasData = !rs.wasNull();
+
+                if (hasData) {
+                    javaAvgLabel.setText(String.format("Java平均分：%.2f", javaAvg));
+                    mathAvgLabel.setText(String.format("数学平均分：%.2f", mathAvg));
+                    englishAvgLabel.setText(String.format("英语平均分：%.2f", englishAvg));
+                    maxScoreLabel.setText(String.format("最高分：%.2f", maxScore));
+                    minScoreLabel.setText(String.format("最低分：%.2f", minScore));
+
+                } else {
+                    javaAvgLabel.setText("Java平均分：暂无数据");
+                    mathAvgLabel.setText("数学平均分：暂无数据");
+                    englishAvgLabel.setText("英语平均分：暂无数据");
+                    maxScoreLabel.setText("最高分：暂无数据");
+                    minScoreLabel.setText("最低分：暂无数据");
+                }
             }
+
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "查询平均分失败: " + ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
         }
-
-        if (validCount == 0) {
-            javaAvgLabel.setText("Java平均分：暂无数据");
-            mathAvgLabel.setText("数学平均分：暂无数据");
-            englishAvgLabel.setText("英语平均分：暂无数据");
-            return;
-        }
-
-        double javaAvg = javaSum / validCount;
-        double mathAvg = mathSum / validCount;
-        double englishAvg = englishSum / validCount;
-
-        // 更新标签内容
-        javaAvgLabel.setText(String.format("Java平均分：%.2f", javaAvg));
-        mathAvgLabel.setText(String.format("数学平均分：%.2f", mathAvg));
-        englishAvgLabel.setText(String.format("英语平均分：%.2f", englishAvg));
     }
 
     private double getScoreSafely(Student student, int index) {

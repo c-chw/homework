@@ -1,6 +1,7 @@
 package Java.ui;
 
 import Java.DBUtil;
+import Java.bean.Score;
 import Java.bean.Student;
 
 import javax.swing.*;
@@ -8,6 +9,8 @@ import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EditStudentUI extends JFrame {
     private JLabel nameField,idField;
@@ -48,7 +51,10 @@ public class EditStudentUI extends JFrame {
         this.add(JavaLabel,gbc);
 
         gbc.gridx = 1;
-        JavaTextField = new JTextField(student.getScores().get(0).getScore()+"", 15);
+        String JavaScore = (student.getScores() != null && student.getScores().size() > 0)
+                ? student.getScores().get(0).getScore() + ""
+                : "0";
+        JavaTextField = new JTextField(JavaScore,15);
         this.add(JavaTextField,gbc);
 
         gbc.gridx = 0;
@@ -57,7 +63,10 @@ public class EditStudentUI extends JFrame {
         this.add(MathLabel,gbc);
 
         gbc.gridx = 1;
-        MathTextField = new JTextField(student.getScores().get(1).getScore()+"", 15);
+        String MathScore = (student.getScores() != null && student.getScores().size() > 0)
+                ? student.getScores().get(1).getScore() + ""
+                : "0";
+        MathTextField = new JTextField(MathScore,15);
         this.add(MathTextField,gbc);
 
         gbc.gridx = 0;
@@ -66,7 +75,10 @@ public class EditStudentUI extends JFrame {
         this.add(EnglishLabel,gbc);
 
         gbc.gridx = 1;
-        EnglishTextField = new JTextField(student.getScores().get(2).getScore()+"", 15);
+        String EnglishScore = (student.getScores() != null && student.getScores().size() > 0)
+                ? student.getScores().get(2).getScore() + ""
+                : "0";
+        EnglishTextField = new JTextField(EnglishScore, 15);
         this.add(EnglishTextField,gbc);
 
         gbc.gridx = 0;
@@ -93,20 +105,30 @@ public class EditStudentUI extends JFrame {
                 double mathScore = parseScore(mathText);
                 double englishScore = parseScore(englishText);
 
+                List<Score> scores = student.getScores();
+                if (scores == null || scores.isEmpty()) {
+                    // 初始化 scores 列表，确保至少有 3 个元素
+                    scores = new ArrayList<>();
+                    for (int i = 0; i < 3; i++) {
+                        scores.add(new Score());
+                    }
+                    student.setScores((ArrayList<Score>) scores); // 将初始化后的 scores 设置回 student 对象
+                }
+
                 student.getScores().get(0).setScore(javaScore);
                 student.getScores().get(1).setScore(mathScore);
                 student.getScores().get(2).setScore(englishScore);
 
                 try (Connection conn = DBUtil.getConnection()) {
                     String sql = "UPDATE students SET Java = ?, Math = ?, English = ?, TotalScore = ? WHERE id = ?";
-                    PreparedStatement pstmt = conn.prepareStatement(sql);
-                    pstmt.setDouble(1, javaScore);
-                    pstmt.setDouble(2, mathScore);
-                    pstmt.setDouble(3, englishScore);
-                    pstmt.setString(4, String.valueOf(javaScore + mathScore + englishScore));
-                    pstmt.setInt(5, student.getId());
+                    PreparedStatement stmt = conn.prepareStatement(sql);
+                    stmt.setDouble(1, javaScore);
+                    stmt.setDouble(2, mathScore);
+                    stmt.setDouble(3, englishScore);
+                    stmt.setString(4, String.valueOf(javaScore + mathScore + englishScore));
+                    stmt.setInt(5, student.getId());
 
-                    int rowsAffected = pstmt.executeUpdate();
+                    int rowsAffected = stmt.executeUpdate();
                     if (rowsAffected > 0) {
                         studentManagerUI.refreshStudent();
                         JOptionPane.showMessageDialog(EditStudentUI.this, "修改学生信息成功");

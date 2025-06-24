@@ -5,6 +5,7 @@ import Java.bean.Student;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 
 public class AddStudentUI extends JFrame {
     private JTextField txtId,txtName,txtScore;
@@ -109,14 +110,7 @@ public class AddStudentUI extends JFrame {
                 return;
             }
 
-            // 获取输入框中的数据，封装成学生对象，添加到信息界面的集合并在其表格展示
-            Student student = new Student();
-            student.setId(Integer.parseInt(txtId.getText()));
-            student.setName(txtName.getText());
-
-            // 获取用户选择的科目和输入的成绩
-            String selectedSubject = (String) cmbSubject.getSelectedItem();
-            double scoreValue = 0.0; //基元 类型不能为null 基元包装类（<Double> 包装类可以为null)
+            double scoreValue = 0.0;
 
             // 成绩非空时才解析
             if (!scoreText.isEmpty()) {
@@ -128,15 +122,29 @@ public class AddStudentUI extends JFrame {
                 }
             }
 
+            // 创建 scores 列表并初始化三个科目
+            ArrayList<Score> scores = new ArrayList<>();
+            String selectedSubject = (String) cmbSubject.getSelectedItem();
 
-            // 创建 Score 对象并添加到学生对象中
-            Score score = new Score(selectedSubject, scoreValue);
-            student.getScores().add(score);
+            // 初始化三个科目的成绩为 0
+            scores.add(new Score("Java", 0.0));
+            scores.add(new Score("Math", 0.0));
+            scores.add(new Score("English", 0.0));
 
-            //把这个学生对象添加到学生集合中，并刷新表格
+            // 更新用户选择的科目对应的成绩
+            for (Score s : scores) {
+                if (s.getCourse().equals(selectedSubject)) {
+                    s.setScore(scoreValue);
+                }
+            }
+
+            // 创建学生对象并设置数据
+            Student student = new Student(id, nameText, null, scores); // 假设密码可为空
+
+            // 添加学生并刷新界面
             studentManagerUI.addStudent(student);
             JOptionPane.showMessageDialog(this, "添加学生成功");
-            dispose();//  关闭当前窗口
+            dispose(); // 关闭当前窗口
         });
 
         // 设置窗口属性
