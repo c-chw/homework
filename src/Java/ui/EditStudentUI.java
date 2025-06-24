@@ -1,9 +1,13 @@
 package Java.ui;
 
+import Java.DBUtil;
 import Java.bean.Student;
 
 import javax.swing.*;
 import java.awt.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class EditStudentUI extends JFrame {
     private JLabel nameField,idField;
@@ -89,26 +93,34 @@ public class EditStudentUI extends JFrame {
                 double mathScore = parseScore(mathText);
                 double englishScore = parseScore(englishText);
 
-                // 示例：在打开编辑窗口前检查
-                if (student != null && student.getScores().size() >= 3) {
-                    new EditStudentUI(studentManagerUI, student);
-                } else {
-                    JOptionPane.showMessageDialog(this, "学生数据异常，请刷新后重试！", "错误", JOptionPane.ERROR_MESSAGE);
-                }
-
-
                 student.getScores().get(0).setScore(javaScore);
                 student.getScores().get(1).setScore(mathScore);
                 student.getScores().get(2).setScore(englishScore);
 
-                //刷新表格
-                studentManagerUI.refreshStudent();
-                JOptionPane.showMessageDialog(this, "修改学生信息成功");
-                dispose();//  关闭当前窗口
+                try (Connection conn = DBUtil.getConnection()) {
+                    String sql = "UPDATE students SET Java = ?, Math = ?, English = ?, TotalScore = ? WHERE id = ?";
+                    PreparedStatement pstmt = conn.prepareStatement(sql);
+                    pstmt.setDouble(1, javaScore);
+                    pstmt.setDouble(2, mathScore);
+                    pstmt.setDouble(3, englishScore);
+                    pstmt.setString(4, String.valueOf(javaScore + mathScore + englishScore));
+                    pstmt.setInt(5, student.getId());
+
+                    int rowsAffected = pstmt.executeUpdate();
+                    if (rowsAffected > 0) {
+                        studentManagerUI.refreshStudent();
+                        JOptionPane.showMessageDialog(EditStudentUI.this, "修改学生信息成功");
+                        dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(EditStudentUI.this, "修改学生信息失败", "错误", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(EditStudentUI.this, "修改学生信息失败: " + ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+                }
             } catch (Exception ex) {
                 ex.printStackTrace();
-                System.out.println("错误详情：" + ex.getMessage());
-                JOptionPane.showMessageDialog(this, "请输入有效的数字！", "错误", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(EditStudentUI.this, "请输入有效的数字！", "错误", JOptionPane.ERROR_MESSAGE);
             }
         });
 

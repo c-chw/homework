@@ -12,6 +12,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
@@ -244,22 +246,51 @@ public class StudentManagerUI extends JFrame {
     }
 
     public void addStudent(Student student) {
-        students.add(student);
-        //Double totalScore = student.getScores().get(0).getScore() + student.getScores().get(1).getScore() + student.getScores().get(2).getScore(); //未用！！！！！！！！！！！！
-        model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
-        updateAvgScore();
+        try (Connection conn = DBUtil.getConnection()) {
+            String sql = "INSERT INTO students (id, name, Java, Math, English, TotalScore) VALUES (?, ?, ?, ?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql); // 创建预编译SQL语句对象，防止SQL注入攻击
+            stmt.setInt(1, student.getId());
+            stmt.setString(2, student.getName());
+            stmt.setDouble(3, student.getScores().get(0).getScore());
+            stmt.setDouble(4, student.getScores().get(1).getScore());
+            stmt.setDouble(5, student.getScores().get(2).getScore());
+            stmt.setDouble(6, getTotalScore(student));
+
+            int rowsAffected = stmt.executeUpdate(); // 执行SQL语句
+            if (rowsAffected > 0) { // 判断是否添加成功
+                model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore(), getTotalScore(student)});
+                updateAvgScore();
+                JOptionPane.showMessageDialog(this, "添加学生信息成功");
+            } else {
+                JOptionPane.showMessageDialog(this, "添加学生信息失败", "错误", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "添加学生信息失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public void refreshStudent() {
-        model.setRowCount(0); //清空表格
-        for (Student student : students) {
-            ArrayList<Score> scores = (ArrayList<Score>) student.getScores();
-            //Double totalScore = student.getScores().get(0).getScore() + student.getScores().get(1).getScore() + student.getScores().get(2).getScore(); //未用！！！！！！！！！！！！
-            if (scores.size() >= 3) {
-                model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
-            } else {
-                model.addRow(new Object[]{student.getId(), student.getName(), 0, 0, 0});
+        model.setRowCount(0); // 清空表格
+
+        try (Connection conn = DBUtil.getConnection()) {
+            String sql = "SELECT * FROM students";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                double javaScore = rs.getDouble("Java");
+                double mathScore = rs.getDouble("Math");
+                double englishScore = rs.getDouble("English");
+                String totalScore = rs.getString("TotalScore");
+
+                model.addRow(new Object[]{id, name, javaScore, mathScore, englishScore, totalScore});
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "刷新学生信息失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -314,39 +345,6 @@ public class StudentManagerUI extends JFrame {
         if (scores == null) return -1;
         return scores.stream().mapToDouble(Score::getScore).sum();
     }
-    private void loadStudentsFromDatabase() {
-        students.clear(); // 清空默认数据
-        String sql = "SELECT * FROM students"; // 假设有一个 student 表
 
-        try (Connection conn = DBUtil.getConnection();
-             var stmt = conn.createStatement();
-             var rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String password = rs.getString("password");
-
-                // 查询成绩（假设 score 表关联 student.id）
-                String scoreSql = "SELECT * FROM score WHERE student_id = ?";
-                try (var scoreStmt = conn.prepareStatement(scoreSql)) {
-                    scoreStmt.setInt(1, id);
-                    var scoreRs = scoreStmt.executeQuery();
-
-                    ArrayList<Score> scores = new ArrayList<>();
-                    while (scoreRs.next()) {
-                        String subject = scoreRs.getString("subject");
-                        double scoreValue = scoreRs.getDouble("score");
-                        scores.add(new Score(subject, scoreValue));
-                    }
-
-                    students.add(new Student(id, name, password, scores));
-                }
-            }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "❌ 加载学生数据失败: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
 
 }
