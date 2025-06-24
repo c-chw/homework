@@ -142,7 +142,14 @@ public class StudentManagerUI extends JFrame {
             model.setRowCount(0);
             for (Student student : students) {
                 if (student.getName().contains(searchValue)) {
-                    model.addRow(new Object[]{student.getId(), student.getName(), student.getScores().get(0).getScore(), student.getScores().get(1).getScore(), student.getScores().get(2).getScore()});
+                    int size = student.getScores().size();
+                    model.addRow(new Object[]{
+                            student.getId(),
+                            student.getName(),
+                            size > 0 ? student.getScores().get(0).getScore() : 0, // 检查索引是否存在
+                            size > 1 ? student.getScores().get(1).getScore() : 0, // 否则返回默认值 0
+                            size > 2 ? student.getScores().get(2).getScore() : 0
+                    });
                 }
             }
         });
